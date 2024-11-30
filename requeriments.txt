@@ -2,3 +2,4 @@ unidecode
 pdf2image
 python-slugify
 load_dotenv
+pillow

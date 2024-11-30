@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from pdf2image import convert_from_path
 from slugify import slugify
 from dotenv import load_dotenv
+from PIL import Image
 
 load_dotenv()
 app = Flask(__name__)
@@ -13,7 +14,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-def pdf_to_image(pdf_path, output_folder):
+def pdf_to_image(pdf_path, output_folder, dpi=150, quality=85, resize_factor=0.9):
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"O arquivo {pdf_path} não foi encontrado.")
 
@@ -22,11 +23,18 @@ def pdf_to_image(pdf_path, output_folder):
     folder_path = os.path.join(output_folder, folder_name)
     os.makedirs(folder_path, exist_ok=True)
 
-    pages = convert_from_path(pdf_path)
+    pages = convert_from_path(pdf_path, dpi=dpi)
+
     for i, page in enumerate(pages, start=1):
-        page_name = f"{i:02}.png"
+        page_name = f"{i:02}.jpg"  # Salvar como JPEG
         page_path = os.path.join(folder_path, page_name)
-        page.save(page_path, "PNG")
+
+        if resize_factor < 1:
+            new_width = int(page.width * resize_factor)
+            new_height = int(page.height * resize_factor)
+            page = page.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        page.save(page_path, "JPEG", quality=quality, optimize=True)
 
     return folder_name
 
@@ -51,7 +59,7 @@ def upload_file():
 
             try:
                 folder_name = pdf_to_image(file_path, "images")
-                flash(f"PDF processado com sucesso. Imagens salvas na pasta '{folder_name}'.")
+                flash(f"PDF processado com sucesso. Imagens salvas em 'images/{folder_name}'.")
                 return redirect(url_for("upload_file"))
             except Exception as e:
                 flash(f"Erro ao processar o PDF: {e}")
